@@ -1,7 +1,9 @@
 import mlflow
 import os
 import hydra
+import omegaconf
 from omegaconf import DictConfig, OmegaConf
+
 
 
 # This automatically reads in the configuration
@@ -20,8 +22,8 @@ def go(config: DictConfig):
         # This was passed on the command line as a comma-separated list of steps
         steps_to_execute = config["main"]["execute_steps"].split(",")
     else:
-        assert isinstance(config["main"]["execute_steps"], list)
-        steps_to_execute = config["main"]["execute_steps"]
+        assert isinstance(config["main"]["execute_steps"], omegaconf.listconfig.ListConfig)
+        steps_to_execute = OmegaConf.to_container(config["main"]["execute_steps"])
 
     # Download step
     if "download" in steps_to_execute:
@@ -75,7 +77,7 @@ def go(config: DictConfig):
                 "artifact_root": "data",
                 "artifact_type": "segregated_data",
                 "test_size": config["data"]["test_size"],
-                "random_state": config["data"]["random_state"],
+                "random_state": config["main"]["random_seed"],
                 "stratify": config["data"]["stratify"]
             },
         )
@@ -95,10 +97,10 @@ def go(config: DictConfig):
             parameters={
                 "train_data": "data_train.csv:latest",
                 "model_config": model_config,
-                "export_artifact": model_config["random_forest_pipeline"]["export_artifact"],
+                "export_artifact": config["random_forest_pipeline"]["export_artifact"],
                 "random_seed": config["main"]["random_seed"], 
                 "val_size": config["data"]["test_size"],
-                "stratify": config["data"]["stratify"],
+                "stratify": config["data"]["stratify"]
             }, 
         )
 
@@ -109,8 +111,8 @@ def go(config: DictConfig):
             os.path.join(root_path, "evaluate"),
             "main",
             parameters={
-                "model_export": model_config["random_forest_pipeline"]["export_artifact"],
-                "test_data": "data_test.csv:latest",
+                "model_export": f"{config['random_forest_pipeline']['export_artifact']}:latest",
+                "test_data": "data_test.csv:latest"
             },
         )
 
